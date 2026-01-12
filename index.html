@@ -1,82 +1,137 @@
-<!DOCTYPE html><html lang="pt-BR">
+<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pix Premiado</title>
+
 <style>
-body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0b1f1a;color:#fff}
-.capa{width:100%;background:#000;display:flex;justify-content:center;align-items:center;padding:10px 0}
-.capa img{max-width:100%;max-height:90vh;object-fit:contain}
-.container{padding:20px;max-width:1200px;margin:auto}
-h1{text-align:center}
-p{text-align:center;opacity:.9}
-.numeros{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;margin-top:30px}
-.numero{background:#1e3d32;border-radius:8px;padding:12px 5px;text-align:center;font-weight:bold;cursor:pointer;font-size:14px}
-.numero:hover{background:#2e6b57}
-.vendido{background:#555!important;cursor:not-allowed}
-.numero small{display:block;margin-top:5px;font-size:11px;opacity:.9;word-break:break-word}
-footer{text-align:center;padding:20px;font-size:14px;opacity:.7}
+body{margin:0;font-family:Arial;background:#0b1f1a;color:#fff}
+header{text-align:center;padding:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px;padding:15px}
+.num{background:#1e3d32;padding:10px;border-radius:6px;text-align:center;cursor:pointer;font-weight:bold}
+.num:hover{background:#2e6b57}
+.vendido{background:#555;cursor:not-allowed}
+.num small{display:block;font-size:10px;margin-top:4px}
+button,input{padding:10px;width:100%;margin-top:10px}
+.admin{display:none;background:#fff;color:#000;padding:15px;border-radius:8px;margin:15px}
+.resultado{background:#eee;padding:10px;border-radius:6px;margin-top:10px}
+footer{text-align:center;font-size:13px;opacity:.7;padding:10px}
 </style>
 </head>
-<body><div class="capa">
-<img src="Img1.jpg" alt="Pix Premiado">
-</div><div class="container">
-<h1>Pix Premiado</h1>
-<p>Escolha seu número e preencha seus dados</p><div class="numeros" id="numeros"></div>
-</div><footer>© Pix Premiado</footer><script>
-const container=document.getElementById('numeros');
 
-let vendidos=JSON.parse(localStorage.getItem('numerosVendidos'))||{};
+<body>
+
+<header>
+<h1>Pix Premiado</h1>
+<p>Escolha seu número</p>
+<button onclick="abrirAdmin()">Modo organizador</button>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<div class="admin" id="admin">
+<h2>Painel do Organizador</h2>
+<button onclick="sortear()">🎁 Sortear prêmio</button>
+<button onclick="resetar()">🔄 Resetar tudo</button>
+<div id="resultados"></div>
+</div>
+
+<footer>© Pix Premiado</footer>
+
+<script>
+const SENHA = "admin123";
+const LIMITE_POR_PESSOA = 3;
+const LIMITE_SORTEIOS = 15;
+
+let dados = JSON.parse(localStorage.getItem("pixDados")) || {};
+let sorteios = JSON.parse(localStorage.getItem("pixSorteios")) || [];
+
+const grid = document.getElementById("grid");
 
 function salvar(){
-localStorage.setItem('numerosVendidos',JSON.stringify(vendidos));
+  localStorage.setItem("pixDados",JSON.stringify(dados));
+  localStorage.setItem("pixSorteios",JSON.stringify(sorteios));
 }
 
-function contarPorNome(){
-let c={};
-Object.values(vendidos).forEach(v=>{
-const nome=v.nome;
-c[nome]=(c[nome]||0)+1;
-});
-return c;
+function contar(nome){
+  return Object.values(dados).filter(d=>d.nome===nome).length;
 }
 
 for(let i=1;i<=2000;i++){
-const num=i.toString().padStart(4,'0');
-const div=document.createElement('div');
-div.className='numero';
-
-if(vendidos[num]){
-div.classList.add('vendido');
-div.innerHTML=num+`<small>${vendidos[num].nome}</small>`;
-}else{
-div.textContent=num;
+  const n=i.toString().padStart(4,"0");
+  const d=document.createElement("div");
+  d.className="num";
+  atualizar(d,n);
+  d.onclick=()=>{
+    if(dados[n]) return;
+    const nome=prompt("Digite seu nome:");
+    if(!nome) return;
+    const whats=prompt("Digite seu WhatsApp:");
+    if(!whats) return;
+    if(contar(nome)>=LIMITE_POR_PESSOA){
+      alert("Limite de 3 números por pessoa.");
+      return;
+    }
+    dados[n]={nome,whats};
+    salvar();
+    atualizar(d,n);
+  };
+  grid.appendChild(d);
 }
 
-
-div.onclick=()=>{
-if(vendidos[num]) return;
-
-const nome=prompt('Digite seu nome:');
-if(!nome||!nome.trim()) return;
-
-const whatsapp=prompt('Digite seu WhatsApp:');
-if(!whatsapp||!whatsapp.trim()) return;
-
-const contagem=contarPorNome();
-if((contagem[nome.trim()]||0)>=3){
-alert('Cada pessoa pode escolher no máximo 3 números.');
-return;
+function atualizar(div,n){
+  if(dados[n]){
+    div.classList.add("vendido");
+    div.innerHTML=n+`<small>${dados[n].nome}</small>`;
+  }else{
+    div.classList.remove("vendido");
+    div.textContent=n;
+  }
 }
 
-vendidos[num]={nome:nome.trim(), whatsapp:whatsapp.trim()};
-salvar();
-
-div.classList.add('vendido');
-div.innerHTML=num+`<small>${nome.trim()}</small>`;
-};
-
-container.appendChild(div);
+function abrirAdmin(){
+  const s=prompt("Digite a senha:");
+  if(s===SENHA){
+    document.getElementById("admin").style.display="block";
+    mostrarResultados();
+  }else alert("Senha incorreta");
 }
-</script></body>
+
+function sortear(){
+  if(sorteios.length>=LIMITE_SORTEIOS){
+    alert("Limite de sorteios atingido");
+    return;
+  }
+  const nums=Object.keys(dados);
+  if(nums.length===0){
+    alert("Nenhum número vendido");
+    return;
+  }
+  const n=nums[Math.floor(Math.random()*nums.length)];
+  sorteios.push({n,...dados[n]});
+  salvar();
+  mostrarResultados();
+}
+
+function mostrarResultados(){
+  const r=document.getElementById("resultados");
+  r.innerHTML="";
+  sorteios.forEach((s,i)=>{
+    const d=document.createElement("div");
+    d.className="resultado";
+    d.innerHTML=`<b>Sorteio ${i+1}</b><br>Número: ${s.n}<br>${s.nome} - ${s.whats}`;
+    r.appendChild(d);
+  });
+}
+
+function resetar(){
+  if(confirm("Deseja resetar tudo?")){
+    localStorage.clear();
+    location.reload();
+  }
+}
+</script>
+
+</body>
 </html>
